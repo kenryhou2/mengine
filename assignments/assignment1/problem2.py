@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import mengine as m
-from problem1 import euler_to_rotation_matrix
 np.set_printoptions(precision=3, suppress=True)
 
 # NOTE: This assignment asks you to test rotations and translations in varying order.
@@ -20,6 +19,25 @@ orient = np.eye(3)
 box = m.Shape(m.Box(half_extents=[0.1, 0.2, 0.05]), static=True,
               position=pos, orientation=m.get_quaternion(orient), rgba=[0, 1, 0, 1])
 
+def euler_to_rotation_matrix(alpha, beta, gamma):
+    # Convert euler angles (alpha, beta, gamma) to rotation matrix
+    # input: alpha, beta, gamma: euler angles
+    # output: R: rotation matrix
+
+    # ------ TODO Student answer below -------
+    #Note: Using ZYZ Euler Angle convention with intrinsic rotations:
+    def Rz(theta):
+        return np.array([[np.cos(theta), -np.sin(theta), 0],
+                         [np.sin(theta), np.cos(theta), 0],
+                         [0, 0, 1]])
+    def Ry(theta):
+        return np.array([[np.cos(theta), 0, np.sin(theta)],
+                        [0, 1, 0],
+                        [-np.sin(theta), 0, np.cos(theta)]])
+    return Rz(alpha) @ Ry(beta) @ Rz(gamma)
+
+    # ------ Student answer above -------
+
 def apply_transform(pos, orient, d, euler):
     # transform a box using translation d and rotation given by euler angles
     # input: pos, orient: current position and orientation (rotation matrix) of the box
@@ -29,6 +47,7 @@ def apply_transform(pos, orient, d, euler):
     # ------ TODO Student answer below -------
     
     #Create homogeneous 4x4 transform of current and transform poses
+
     T_current = np.eye(4)
     #populate matrix
     T_current[0:3,0:3] = orient
@@ -46,6 +65,7 @@ def apply_transform(pos, orient, d, euler):
     orient_new = T_new[0:3,0:3]
 
     return pos_new, orient_new
+    # return np.zeros(3), np.eye(3)
     # ------ Student answer above -------
 
 def wait_for_enter():
