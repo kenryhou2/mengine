@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import mengine as m
+from problem1 import euler_to_rotation_matrix
 np.set_printoptions(precision=3, suppress=True)
 
 # NOTE: This assignment asks you to test rotations and translations in varying order.
@@ -26,7 +27,25 @@ def apply_transform(pos, orient, d, euler):
     #        euler: target rotation in euler angles
     # output: pos_new, orient_new: new position and orientation (rotation matrix) of the box
     # ------ TODO Student answer below -------
-    return np.zeros(3), np.eye(3)
+    
+    #Create homogeneous 4x4 transform of current and transform poses
+    T_current = np.eye(4)
+    #populate matrix
+    T_current[0:3,0:3] = orient
+    T_current[0:3,3] = pos
+
+    T = np.eye(4)
+    T[0:3,0:3] = euler_to_rotation_matrix(euler[0], euler[1], euler[2])
+    T[0:3,3] = d
+
+    #Apply Transform to T_current
+    T_new = T_current @ T
+
+    #Return variables
+    pos_new = T_new[0:3,3]
+    orient_new = T_new[0:3,0:3]
+
+    return pos_new, orient_new
     # ------ Student answer above -------
 
 def wait_for_enter():
