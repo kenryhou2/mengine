@@ -61,7 +61,7 @@ while True:
                 print('Euclidean between (%d) and (%d):' % (i, i+1+j), np.linalg.norm(p2 - p1))
                 print('Manhattan between (%d) and (%d):' % (i, i+1+j), np.sum(np.abs(p2 - p1)))
                 print('Chebyshev between (%d) and (%d):' % (i, i+1+j), np.max(np.abs(p2 - p1)))
-                print('Quaternion distance between (%d) and (%d)' % (i, i+1+j), np.arccos(2*np.square(q1.dot(q2)) - 1))
+                print('Quaternion distance [radians] between (%d) and (%d)' % (i, i+1+j), np.arccos(2*np.square(q1.dot(q2)) - 1))
         print('-'*20)
     if 'c' in keys:
         # Clear all coordinate frames

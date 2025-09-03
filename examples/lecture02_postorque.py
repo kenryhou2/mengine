@@ -68,7 +68,7 @@ for i in range(100):
 
     # Computed torque control - PD torque control
     Kp = np.eye(len(M))*5000
-    Kd = np.eye(len(M))*100
+    Kd = np.eye(len(M))*1000
     if theta_e_prev is None:
         theta_e_prev = theta_e
     tau = M.dot(Kp.dot(theta_e) + Kd.dot(theta_e - theta_e_prev))[robot.controllable_joints]
