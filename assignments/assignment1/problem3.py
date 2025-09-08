@@ -2,7 +2,101 @@ from scipy.interpolate import CubicSpline
 import os
 import numpy as np
 import mengine as m
-np.set_printoptions(precision=3, suppress=True)
+import pybullet as p
+
+# ---------- helpers ----------
+def quat_xyzw_to_R(q):
+    x, y, z, w = q
+    xx, yy, zz = x*x, y*y, z*z
+    xy, xz, yz = x*y, x*z, y*z
+    wx, wy, wz = w*x, w*y, w*z
+    return np.array([
+        [1 - 2*(yy + zz), 2*(xy - wz),     2*(xz + wy)],
+        [2*(xy + wz),     1 - 2*(xx + zz), 2*(yz - wx)],
+        [2*(xz - wy),     2*(yz + wx),     1 - 2*(xx + yy)]
+    ], dtype=float)
+
+def R_from_axis_angle(axis, theta):
+    axis = np.asarray(axis, float)
+    n = np.linalg.norm(axis)
+    if n < 1e-12:
+        return np.eye(3)
+    a = axis / n
+    ax, ay, az = a
+    K = np.array([[0, -az, ay],
+                  [az, 0, -ax],
+                  [-ay, ax, 0]], dtype=float)
+    c, s = np.cos(theta), np.sin(theta)
+    return np.eye(3) + s*K + (1 - c)*(K @ K)
+
+def _T_from_pos_quat(pos, quat_xyzw):
+    T = np.eye(4)
+    T[:3, :3] = quat_xyzw_to_R(quat_xyzw)
+    T[:3, 3]  = np.asarray(pos, float)
+    return T
+
+def _T_from_axis_angle(axis, theta):
+    T = np.eye(4)
+    T[:3, :3] = R_from_axis_angle(axis, theta)
+    return T
+
+def rotmat_to_quat_xyzw(R):
+    """3x3 rotation matrix -> quaternion [x,y,z,w]."""
+    R = np.asarray(R, dtype=float)
+    t = R[0,0] + R[1,1] + R[2,2]
+    if t > 0.0:
+        s = np.sqrt(t + 1.0) * 2.0
+        w = 0.25 * s
+        x = (R[2,1] - R[1,2]) / s
+        y = (R[0,2] - R[2,0]) / s
+        z = (R[1,0] - R[0,1]) / s
+    else:
+        # find the largest diagonal
+        if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+            s = np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2]) * 2.0
+            w = (R[2,1] - R[1,2]) / s
+            x = 0.25 * s
+            y = (R[0,1] + R[1,0]) / s
+            z = (R[0,2] + R[2,0]) / s
+        elif R[1,1] > R[2,2]:
+            s = np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2]) * 2.0
+            w = (R[0,2] - R[2,0]) / s
+            x = (R[0,1] + R[1,0]) / s
+            y = 0.25 * s
+            z = (R[1,2] + R[2,1]) / s
+        else:
+            s = np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1]) * 2.0
+            w = (R[1,0] - R[0,1]) / s
+            x = (R[0,2] + R[2,0]) / s
+            y = (R[1,2] + R[2,1]) / s
+            z = 0.25 * s
+    q = np.array([x, y, z, w], dtype=float)
+    q /= (np.linalg.norm(q) + 1e-16)
+    return q
+
+def get_joint_frame(robot, joint_index):
+    """
+    Returns:
+      parent_pos (3,), parent_quat (4,),
+      axis (3,),
+      child_pos (3,), child_quat (4,)
+    All frames are URDF joint frames relative to parent/child links.
+    """
+    ji = p.getJointInfo(robot.body, joint_index, physicsClientId=robot.id)
+    axis         = np.array(ji[13])
+    parent_pos   = np.array(ji[14])
+    parent_quat  = np.array(ji[15])
+    # Some builds include child frame at indices 18/19
+    if len(ji) > 19:
+        child_pos  = np.array(ji[18])
+        child_quat = np.array(ji[19])
+    else:
+        child_pos  = np.zeros(3)
+        child_quat = np.array([0,0,0,1], dtype=float)
+    return parent_pos, parent_quat, axis, child_pos, child_quat
+# ---------- end helpers ----------
+
+np.set_printoptions(precision=3, suppress=True) 
 
 # NOTE: This assignment asks you to Implement FK, plot the robot workspace, and check for collisions
 # Create environment and ground plane
@@ -27,8 +121,16 @@ def sample_configuration():
     # NOTE: Be conscious of joint angle limits
     # output: q: joint angles of the robot
     # ------ TODO Student answer below -------
-    print('TODO sample_configuration')
-    return np.zeros(3)
+    # print('TODO sample_configuration')
+    # return np.zeros(3)
+    q0_limits = [-np.pi, np.pi/2]
+    q1_limits = [-np.pi/2, np.pi/2]
+    q2_limits = [-np.pi/2, np.pi/2]
+    q0 = np.random.uniform(q0_limits[0], q0_limits[1])
+    q1 = np.random.uniform(q1_limits[0], q1_limits[1])
+    q2 = np.random.uniform(q2_limits[0], q2_limits[1])
+    return np.array([q0, q1, q2])
+
     # ------ Student answer above -------
 
 
@@ -40,10 +142,35 @@ def calculate_FK(q, joint=3):
     # output: ee_position: position of the end effector
     #         ee_orientation: orientation of the end effector
     # ------ TODO Student answer below -------
-    print('TODO calculate_FK')
+    # print('TODO calculate_FK')
     position = np.zeros(3)
     orientation = np.zeros(4)
     # orientation = m.get_quaternion(orientation) # NOTE: If you used transformation matrices, call this function to get a quaternion
+    
+    #Obtain World to base transform.
+    # World -> base
+    base_pos, base_quat = p.getBasePositionAndOrientation(robot.body, physicsClientId=robot.id)
+    T = _T_from_pos_quat(base_pos, base_quat)
+
+
+
+    # Chain joints 0..joint-1
+    for i in range(joint):
+        parent_pos, parent_quat, axis, child_pos, child_quat = get_joint_frame(robot, i)
+        T_parent_to_joint = _T_from_pos_quat(parent_pos, parent_quat)
+        T_joint_motion    = _T_from_axis_angle(axis, float(q[i]))
+        T_joint_to_child  = _T_from_pos_quat(child_pos, child_quat)
+        print(f"Joint {i}:")
+        print(" T_parent_to_joint:\n", T_parent_to_joint)
+        print(" T_joint_motion:\n", T_joint_motion)
+        print(" T_joint_to_child:\n", T_joint_to_child)
+
+        # world -> ... -> parent * (parent->joint) * (motion) * (joint->child link)
+        T = T @ T_parent_to_joint @ T_joint_motion @ T_joint_to_child
+
+    position = T[:3, 3].copy()
+    orientation = rotmat_to_quat_xyzw(T[:3,:3])  # returns [x,y,z,w]
+
     # ------ Student answer above -------
     return position, orientation
 
@@ -52,7 +179,7 @@ def compare_FK(ee_positions, ee_positions_pb, ee_orientations, ee_orientations_p
     # Compare the FK implementation to the built-in one
     # input: ee_positions: list of positions of the end effector
     #        ee_positions_pb: list of positions of the end effector from pybullet
-    #        ee_orientations: list of orientations of the end effector
+    #        ee_orientations: list of orientations of the end effector (normalized quaternions)
     #        ee_orientations_pb: list of orientations of the end effector from pybullet
     distance_error_sum = 0
     orientation_error_sum = 0
@@ -105,6 +232,7 @@ ee_positions_pb = []
 ee_orientations_pb = []
 
 for i in range(100):
+    print('Sampling configuration', i)
     # sample a random configuration q
     q = sample_configuration()
     # move robot into configuration q
@@ -134,6 +262,7 @@ wait_for_enter()
 for i in range(1000):
     # sample a random configuration q
     # TODO
+    q = sample_configuration()
 
     # move robot into configuration q
     robot.control(q, set_instantly=True)
@@ -141,7 +270,7 @@ for i in range(1000):
 
     # calculate ee_position, ee_orientation using calculate_FK
     # TODO
-
+    ee_position, ee_orientation = calculate_FK(q, joint=4)
     # plot workspace as points of the end effector
     plot_point(ee_position)
 # ------ Student answer above -------
