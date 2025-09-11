@@ -162,8 +162,12 @@ def calculate_FK(q, joint=3):
         T_joint_to_child  = _T_from_pos_quat(child_pos, child_quat)
         
         #adding link length for end effector
-        if i == joint-1:
-            T_joint_to_child[:3, 3]  = np.array([0, 0, 0.3])  
+        if i == 2 and joint == 3:
+            T_joint_to_child[:3, 3]  = np.array([0, 0, 0.3])
+        if i == 1 and joint == 2:
+            T_joint_to_child[:3, 3]  = np.array([0, 0, 0.4])
+        if i == 0 and joint == 1:
+            T_joint_to_child[:3, 3]  = np.array([0, 0, 0.5])  
 
         # print(f"Joint {i}:")
         # print(" T_parent_to_joint:\n", T_parent_to_joint)
@@ -221,8 +225,20 @@ def check_collision(q, box_position, box_half_extents):
     #        box_half_extents: half extents of the collision region
     # output: in_collision: True if the robot is in collision region, False otherwise
     # ------ TODO Student answer below -------
-    print('TODO check_collision')
-    return False
+    # print('TODO check_collision')
+    # return False
+
+    collision_status = False
+    num_joints = len(q)
+    #Check collision for each link
+    for joint_index in range(num_joints):
+        link_pos, link_orientation = calculate_FK(q, joint=joint_index)
+        #Check if link_pos is within the box defined by box_position and box_half_extents
+        if all(box_position - box_half_extents <= link_pos) and all(link_pos <= box_position + box_half_extents):
+            collision_status = True
+            break
+    return collision_status
+
     # ------ Student answer above -------
 
 
@@ -236,26 +252,27 @@ ee_orientations = []
 ee_positions_pb = []
 ee_orientations_pb = []
 
-for i in range(100):
-    print('Sampling configuration', i)
-    # sample a random configuration q
-    q = sample_configuration()
-    # move robot into configuration q
-    robot.control(q, set_instantly=True)
-    m.step_simulation(realtime=True)
-    # calculate ee_position, ee_orientation using calculate_FK
-    ee_position, ee_orientation = calculate_FK(q, joint=3)
-    ee_positions.append(ee_position)
-    ee_orientations.append(ee_orientation)
-    # calculate ee position, orientation using pybullet's FK
-    ee_position_pb, ee_orientation_pb = robot.get_link_pos_orient(robot.end_effector)
-    ee_positions_pb.append(ee_position_pb)
-    ee_orientations_pb.append(ee_orientation_pb)
-# compare your implementation and pybullet's FK
-compare_FK(ee_positions, ee_positions_pb, ee_orientations, ee_orientations_pb)
+# for i in range(100):
+#     if i % 10 == 0:
+#         print('Sampling configuration', i)
+#     # sample a random configuration q
+#     q = sample_configuration()
+#     # move robot into configuration q
+#     robot.control(q, set_instantly=True)
+#     m.step_simulation(realtime=True)
+#     # calculate ee_position, ee_orientation using calculate_FK
+#     ee_position, ee_orientation = calculate_FK(q, joint=3)
+#     ee_positions.append(ee_position)
+#     ee_orientations.append(ee_orientation)
+#     # calculate ee position, orientation using pybullet's FK
+#     ee_position_pb, ee_orientation_pb = robot.get_link_pos_orient(robot.end_effector)
+#     ee_positions_pb.append(ee_position_pb)
+#     ee_orientations_pb.append(ee_orientation_pb)
+# # compare your implementation and pybullet's FK
+# compare_FK(ee_positions, ee_positions_pb, ee_orientations, ee_orientations_pb)
 
-# NOTE: Press enter to continue to problem 3.2
-wait_for_enter()
+# # NOTE: Press enter to continue to problem 3.2
+# wait_for_enter()
 
 
 # ##########################################
@@ -263,25 +280,27 @@ wait_for_enter()
 # Plot the workspace of the robot using a sampling-based approach
 # ##########################################
 
-# ------ TODO Student answer below -------
-for i in range(2000):
-    # sample a random configuration q
-    # TODO
-    q = sample_configuration()
+# # ------ TODO Student answer below -------
+# for i in range(1005):
+#     if i % 100 == 0:
+#         print('Sampling configuration', i)
+#     # sample a random configuration q
+#     # TODO
+#     q = sample_configuration()
 
-    # move robot into configuration q
-    robot.control(q, set_instantly=True)
-    m.step_simulation(realtime=True)
+#     # move robot into configuration q
+#     robot.control(q, set_instantly=True)
+#     m.step_simulation(realtime=True)
 
-    # calculate ee_position, ee_orientation using calculate_FK
-    # TODO
-    ee_position, ee_orientation = calculate_FK(q, joint=3)
-    # plot workspace as points of the end effector
-    plot_point(ee_position)
-# ------ Student answer above -------
+#     # calculate ee_position, ee_orientation using calculate_FK
+#     # TODO
+#     ee_position, ee_orientation = calculate_FK(q, joint=3)
+#     # plot workspace as points of the end effector
+#     plot_point(ee_position)
+# # ------ Student answer above -------
 
-# NOTE: Press enter to continue to problem 3.3
-wait_for_enter()
+# # NOTE: Press enter to continue to problem 3.3
+# wait_for_enter()
 
 
 # ##########################################
@@ -316,6 +335,7 @@ t_collision = []
 for i in range(200):
     # move robot to configuration
     target_joint_angles = traj[:, i]
+    # print(target_joint_angles)
     robot.control(target_joint_angles, set_instantly=True)
     m.step_simulation(realtime=True)
 
