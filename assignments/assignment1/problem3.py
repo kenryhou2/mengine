@@ -160,11 +160,16 @@ def calculate_FK(q, joint=3):
         T_parent_to_joint = _T_from_pos_quat(parent_pos, parent_quat)
         T_joint_motion    = _T_from_axis_angle(axis, float(q[i]))
         T_joint_to_child  = _T_from_pos_quat(child_pos, child_quat)
-        print(f"Joint {i}:")
-        print(" T_parent_to_joint:\n", T_parent_to_joint)
-        print(" T_joint_motion:\n", T_joint_motion)
-        print(" T_joint_to_child:\n", T_joint_to_child)
+        
+        #adding link length for end effector
+        if i == joint-1:
+            T_joint_to_child[:3, 3]  = np.array([0, 0, 0.3])  
 
+        # print(f"Joint {i}:")
+        # print(" T_parent_to_joint:\n", T_parent_to_joint)
+        # print(" T_joint_motion:\n", T_joint_motion)
+        # print(" T_joint_to_child:\n", T_joint_to_child)
+        
         # world -> ... -> parent * (parent->joint) * (motion) * (joint->child link)
         T = T @ T_parent_to_joint @ T_joint_motion @ T_joint_to_child
 
@@ -259,7 +264,7 @@ wait_for_enter()
 # ##########################################
 
 # ------ TODO Student answer below -------
-for i in range(1000):
+for i in range(2000):
     # sample a random configuration q
     # TODO
     q = sample_configuration()
@@ -270,7 +275,7 @@ for i in range(1000):
 
     # calculate ee_position, ee_orientation using calculate_FK
     # TODO
-    ee_position, ee_orientation = calculate_FK(q, joint=4)
+    ee_position, ee_orientation = calculate_FK(q, joint=3)
     # plot workspace as points of the end effector
     plot_point(ee_position)
 # ------ Student answer above -------
