@@ -252,55 +252,55 @@ ee_orientations = []
 ee_positions_pb = []
 ee_orientations_pb = []
 
-# for i in range(100):
-#     if i % 10 == 0:
-#         print('Sampling configuration', i)
-#     # sample a random configuration q
-#     q = sample_configuration()
-#     # move robot into configuration q
-#     robot.control(q, set_instantly=True)
-#     m.step_simulation(realtime=True)
-#     # calculate ee_position, ee_orientation using calculate_FK
-#     ee_position, ee_orientation = calculate_FK(q, joint=3)
-#     ee_positions.append(ee_position)
-#     ee_orientations.append(ee_orientation)
-#     # calculate ee position, orientation using pybullet's FK
-#     ee_position_pb, ee_orientation_pb = robot.get_link_pos_orient(robot.end_effector)
-#     ee_positions_pb.append(ee_position_pb)
-#     ee_orientations_pb.append(ee_orientation_pb)
-# # compare your implementation and pybullet's FK
-# compare_FK(ee_positions, ee_positions_pb, ee_orientations, ee_orientations_pb)
+for i in range(100):
+    if i % 10 == 0:
+        print('Sampling configuration', i)
+    # sample a random configuration q
+    q = sample_configuration()
+    # move robot into configuration q
+    robot.control(q, set_instantly=True)
+    m.step_simulation(realtime=True)
+    # calculate ee_position, ee_orientation using calculate_FK
+    ee_position, ee_orientation = calculate_FK(q, joint=3)
+    ee_positions.append(ee_position)
+    ee_orientations.append(ee_orientation)
+    # calculate ee position, orientation using pybullet's FK
+    ee_position_pb, ee_orientation_pb = robot.get_link_pos_orient(robot.end_effector)
+    ee_positions_pb.append(ee_position_pb)
+    ee_orientations_pb.append(ee_orientation_pb)
+# compare your implementation and pybullet's FK
+compare_FK(ee_positions, ee_positions_pb, ee_orientations, ee_orientations_pb)
 
-# # NOTE: Press enter to continue to problem 3.2
-# wait_for_enter()
+# NOTE: Press enter to continue to problem 3.2
+wait_for_enter()
 
 
-# ##########################################
-# Problem 3.2:
-# Plot the workspace of the robot using a sampling-based approach
-# ##########################################
+# # ##########################################
+# # Problem 3.2:
+# # Plot the workspace of the robot using a sampling-based approach
+# # ##########################################
 
-# # ------ TODO Student answer below -------
-# for i in range(1005):
-#     if i % 100 == 0:
-#         print('Sampling configuration', i)
-#     # sample a random configuration q
-#     # TODO
-#     q = sample_configuration()
+# ------ TODO Student answer below -------
+for i in range(1005):
+    if i % 100 == 0:
+        print('Sampling configuration', i)
+    # sample a random configuration q
+    # TODO
+    q = sample_configuration()
 
-#     # move robot into configuration q
-#     robot.control(q, set_instantly=True)
-#     m.step_simulation(realtime=True)
+    # move robot into configuration q
+    robot.control(q, set_instantly=True)
+    m.step_simulation(realtime=True)
 
-#     # calculate ee_position, ee_orientation using calculate_FK
-#     # TODO
-#     ee_position, ee_orientation = calculate_FK(q, joint=3)
-#     # plot workspace as points of the end effector
-#     plot_point(ee_position)
-# # ------ Student answer above -------
+    # calculate ee_position, ee_orientation using calculate_FK
+    # TODO
+    ee_position, ee_orientation = calculate_FK(q, joint=3)
+    # plot workspace as points of the end effector
+    plot_point(ee_position)
+# ------ Student answer above -------
 
-# # NOTE: Press enter to continue to problem 3.3
-# wait_for_enter()
+# NOTE: Press enter to continue to problem 3.3
+wait_for_enter()
 
 
 # ##########################################
