@@ -58,7 +58,7 @@ def apply_transform(pos, orient, d, euler):
     T[0:3,3] = d
 
     #Apply Transform to T_current
-    T_new = T_current @ T
+    T_new = T @ T_current
 
     #Return variables
     pos_new = T_new[0:3,3]

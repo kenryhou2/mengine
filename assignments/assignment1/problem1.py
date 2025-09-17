@@ -162,7 +162,7 @@ for alpha, beta, gamma in zip([20, -25, 0], [45, 5, 135], [10, 90, -72]):
     R_gt = Rot.from_euler('ZYZ', [alpha, beta, gamma])
     n_temp = Rot.from_quat(q_gt).as_rotvec()
     theta_gt = np.linalg.norm(n_temp)
-    n_gt = n_temp / theta_gt if theta_gt > 1e-12 else np.array([1,0,0])
+    n_gt = n_temp / theta_gt #if theta_gt > 1e-12 else np.array([1,0,0])
     x_new_gt = R_gt.apply(x)
 
     print('-'*20)

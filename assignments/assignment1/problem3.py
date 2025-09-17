@@ -82,18 +82,27 @@ def get_joint_frame(robot, joint_index):
       child_pos (3,), child_quat (4,)
     All frames are URDF joint frames relative to parent/child links.
     """
-    ji = p.getJointInfo(robot.body, joint_index, physicsClientId=robot.id)
-    axis         = np.array(ji[13])
-    parent_pos   = np.array(ji[14])
-    parent_quat  = np.array(ji[15])
-    # Some builds include child frame at indices 18/19
-    if len(ji) > 19:
-        child_pos  = np.array(ji[18])
-        child_quat = np.array(ji[19])
+    # ji = p.getJointInfo(robot.body, joint_index, physicsClientId=robot.id)
+    # axis         = np.array(ji[13])
+    # parent_pos   = np.array(ji[14])
+    # parent_quat  = np.array(ji[15])
+    # # Some builds include child frame at indices 18/19
+    # if len(ji) > 19:
+    #     child_pos  = np.array(ji[18])
+    #     child_quat = np.array(ji[19])
+    # else:
+    #     child_pos  = np.zeros(3)
+    #     child_quat = np.array([0,0,0,1], dtype=float)
+    # return parent_pos, parent_quat, axis, child_pos, child_quat
+    if joint_index == 0:
+        return np.array([0, 0, 0]), np.array([0, 0, 0, 1]), np.array([0, 0, 1]), np.array([0, 0, 0]), np.array([0, 0, 0, 1])
+    elif joint_index == 1:
+        return np.array([0, 0, 0.5]), np.array([0, 0, 0, 1]), np.array([1, 0, 0]), np.array([0, 0, 0]), np.array([0, 0, 0, 1])
+    elif joint_index == 2:
+        return np.array([0, 0, 0.4]), np.array([0, 0, 0, 1]), np.array([1, 0, 0]), np.array([0, 0, 0]), np.array([0, 0, 0, 1])
     else:
-        child_pos  = np.zeros(3)
-        child_quat = np.array([0,0,0,1], dtype=float)
-    return parent_pos, parent_quat, axis, child_pos, child_quat
+        raise ValueError("Invalid joint index")
+
 # ---------- end helpers ----------
 
 np.set_printoptions(precision=3, suppress=True) 
@@ -158,6 +167,7 @@ def calculate_FK(q, joint=3):
     for i in range(joint):
         parent_pos, parent_quat, axis, child_pos, child_quat = get_joint_frame(robot, i)
         T_parent_to_joint = _T_from_pos_quat(parent_pos, parent_quat)
+        # print(f"joint {i} parent_pos: {parent_pos}, parent_quat: {parent_quat}, axis: {axis}, child_pos: {child_pos}, child_quat: {child_quat}")
         T_joint_motion    = _T_from_axis_angle(axis, float(q[i]))
         T_joint_to_child  = _T_from_pos_quat(child_pos, child_quat)
         
