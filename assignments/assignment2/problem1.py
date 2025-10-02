@@ -14,12 +14,43 @@ np.set_printoptions(precision=4, suppress=True)
 
 
 def rotation_matrix_to_quaternion(R: np.ndarray) -> np.ndarray:
-    """Convert rotation matrix R (3x3) to quaternion q (1x4)."""
+    """Convert rotation matrix R (3x3) to quaternion q (1x4) xyzw"""
     # input: R: rotation matrix
     # output: q: quaternion
     # ------ TODO: Student answer below -------
-    return np.array([0, 0, 1, 0])
-    # ------ Student answer above -------
+    R = np.asarray(R, dtype=float)
+    t = R[0,0] + R[1,1] + R[2,2]
+    if t > 0.0:
+        s = np.sqrt(t + 1.0) * 2.0
+        w = 0.25 * s
+        x = (R[2,1] - R[1,2]) / s
+        y = (R[0,2] - R[2,0]) / s
+        z = (R[1,0] - R[0,1]) / s
+    else:
+        # find the largest diagonal
+        if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+            s = np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2]) * 2.0
+            w = (R[2,1] - R[1,2]) / s
+            x = 0.25 * s
+            y = (R[0,1] + R[1,0]) / s
+            z = (R[0,2] + R[2,0]) / s
+        elif R[1,1] > R[2,2]:
+            s = np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2]) * 2.0
+            w = (R[0,2] - R[2,0]) / s
+            x = (R[0,1] + R[1,0]) / s
+            y = 0.25 * s
+            z = (R[1,2] + R[2,1]) / s
+        else:
+            s = np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1]) * 2.0
+            w = (R[1,0] - R[0,1]) / s
+            x = (R[0,2] + R[2,0]) / s
+            y = (R[1,2] + R[2,1]) / s
+            z = 0.25 * s
+    q = np.array([x, y, z, w], dtype=float)
+    q /= (np.linalg.norm(q) + 1e-16)
+    return q
+
+   # ------ Student answer above -------
 
 
 def rodrigues_formula(n, x, theta):
@@ -27,7 +58,9 @@ def rodrigues_formula(n, x, theta):
     # input: n, x, theta: axis, point, angle
     # output: x_new: new point after rotation
     # ------ TODO Student answer below -------
-    return np.zeros(3)
+    n = n / np.linalg.norm(n)
+    x_rot = x * np.cos(theta) + np.cross(n, x) * np.sin(theta) + n * (np.dot(n, x)) * (1 - np.cos(theta))
+    return x_rot
     # ------ Student answer above -------
 
 
@@ -37,13 +70,39 @@ def axis_angle_to_quaternion(axis: np.ndarray, angle: float) -> np.ndarray:
     #        angle: angle of rotation (radians)
     # output: q: quaternion
     # ------ TODO: Student answer below -------
-    return np.array([0, 0, 1, 0])
+    
+    axis = np.asarray(axis, float)
+    n = np.linalg.norm(axis)
+    if n < 1e-12:
+        return np.eye(3)
+    a = axis / n
+    ax, ay, az = a
+    K = np.array([[0, -az, ay],
+                  [az, 0, -ax],
+                  [-ay, ax, 0]], dtype=float)
+    c, s = np.cos(angle), np.sin(angle)
+    R = np.eye(3) + s*K + (1 - c)*(K @ K)
+    return rotation_matrix_to_quaternion(R)
     # ------ Student answer above -------
 
 
 def hamilton_product(p: np.ndarray, q: np.ndarray) -> np.ndarray:
     # ------ TODO: Student answer below -------
-    return np.array([0, 0, 1, 0])
+    p = np.asarray(p, dtype=float).reshape(4)
+    q = np.asarray(q, dtype=float).reshape(4)
+
+    px, py, pz, pw = p
+    qx, qy, qz, qw = q
+
+    vp = np.array([px, py, pz])
+    vq = np.array([qx, qy, qz])
+
+    # vector part:  pw*vq + qw*vp + vp × vq
+    v = pw * vq + qw * vp + np.cross(vp, vq)
+    # scalar part:  pw*qw - vp · vq
+    s = pw * qw - np.dot(vp, vq)
+
+    return np.array([v[0], v[1], v[2], s])
     # ------ Student answer above -------
 
 

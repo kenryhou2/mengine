@@ -77,64 +77,52 @@ def euler_to_axis_angle(alpha, beta, gamma):
     # input: alpha, beta, gamma: euler angles
     # output: n, theta
     # ------ TODO Student answer below -------
-
-    def qmul_xyzw(q1, q2):
-        x1, y1, z1, w1 = q1
-        x2, y2, z2, w2 = q2
-        return np.array([
-            w1*x2 + x1*w2 + y1*z2 - z1*y2,
-            w1*y2 - x1*z2 + y1*w2 + z1*x2,
-            w1*z2 + x1*y2 - y1*x2 + z1*w2,
-            w1*w2 - x1*x2 - y1*y2 - z1*z2
-        ])
-
-
-    def q_from_axis_angle_xyzw(axis, theta):
-        axis = np.asarray(axis, dtype=float)
-        axis = axis / (np.linalg.norm(axis) + 1e-16)
-        half = theta * 0.5
-        s = np.sin(half)
-        x, y, z = axis * s
-        w = np.cos(half)
-        return np.array([x, y, z, w])
-
-    def eulerZYZ_to_quat_xyzw(alpha, beta, gamma):
-        qz_a = q_from_axis_angle_xyzw([0,0,1], alpha)
-        qy_b = q_from_axis_angle_xyzw([0,1,0], beta)
-        qz_g = q_from_axis_angle_xyzw([0,0,1], gamma)
-        q = qmul_xyzw(qmul_xyzw(qz_a, qy_b), qz_g)
-        return q / np.linalg.norm(q)
-
-
-    def quat_xyzw_to_axis_angle(q, eps=1e-12):
+    def rotmat_to_quat(R, eps=1e-12):
         """
-        Convert a quaternion in [x, y, z, w] to (axis, angle).
-        - q can be non-normalized; we normalize internally.
-        - Returns axis as a unit 3-vector, angle in radians ∈ [0, π].
+        Convert a 3x3 rotation matrix to a quaternion [x, y, z, w].
+        Follows the convention: x,y,z are the vector part, w is scalar.
         """
-        q = np.asarray(q, dtype=float)
-        # normalize defensively
-        n = np.linalg.norm(q)
-        if n < eps:
-            # invalid quaternion; return identity
-            return np.array([1.0, 0.0, 0.0]), 0.0
-        x, y, z, w = q / n
+        R = np.asarray(R, dtype=float)
+        assert R.shape == (3, 3)
 
-        # clamp for numerical safety
-        w = np.clip(w, -1.0, 1.0)
-        theta = 2.0 * np.arccos(w)             # angle ∈ [0, π]
+        trace = np.trace(R)
+        if trace > 0.0:
+            s = 0.5 / np.sqrt(trace + 1.0)
+            w = 0.25 / s
+            x = (R[2,1] - R[1,2]) * s
+            y = (R[0,2] - R[2,0]) * s
+            z = (R[1,0] - R[0,1]) * s
+        else:
+            # Find the major diagonal element among R[0,0], R[1,1], R[2,2]
+            if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+                s = 2.0 * np.sqrt(max(eps, 1.0 + R[0,0] - R[1,1] - R[2,2]))
+                w = (R[2,1] - R[1,2]) / s
+                x = 0.25 * s
+                y = (R[0,1] + R[1,0]) / s
+                z = (R[0,2] + R[2,0]) / s
+            elif R[1,1] > R[2,2]:
+                s = 2.0 * np.sqrt(max(eps, 1.0 + R[1,1] - R[0,0] - R[2,2]))
+                w = (R[0,2] - R[2,0]) / s
+                x = (R[0,1] + R[1,0]) / s
+                y = 0.25 * s
+                z = (R[1,2] + R[2,1]) / s
+            else:
+                s = 2.0 * np.sqrt(max(eps, 1.0 + R[2,2] - R[0,0] - R[1,1]))
+                w = (R[1,0] - R[0,1]) / s
+                x = (R[0,2] + R[2,0]) / s
+                y = (R[1,2] + R[2,1]) / s
+                z = 0.25 * s
 
-        s = np.sqrt(max(0.0, 1.0 - w*w))       # == sin(theta/2)
-        if s < eps:
-            # angle ~ 0: axis is undefined; pick a default
-            return np.array([1.0, 0.0, 0.0]), 0.0
-
-        axis = np.array([x, y, z]) / s
-        # ensure unit axis (defensive)
-        axis = axis / (np.linalg.norm(axis) + eps)
-        return axis, theta
-    
-    axis, theta = quat_xyzw_to_axis_angle(eulerZYZ_to_quat_xyzw(alpha, beta, gamma))
+        q = np.array([x, y, z, w])
+        return q / (np.linalg.norm(q) + eps)
+    R = euler_to_rotation_matrix(alpha, beta, gamma)
+    q = rotmat_to_quat(R)
+    theta = 2 * np.arccos(q[3])
+    s = np.sqrt(1 - q[3]**2)
+    if s < 1e-12:
+        axis = np.array([1, 0, 0])  # Arbitrary axis
+    else:
+        axis = q[0:3] / s
     return axis, theta
     # ------ Student answer above -------
 
@@ -158,11 +146,11 @@ for alpha, beta, gamma in zip([20, -25, 0], [45, 5, 135], [10, 90, -72]):
     x_new_aa = rodrigues_formula(n, x, theta)
 
     #Ground Truth Checking
-    q_gt = Rot.from_euler('ZYZ', [alpha, beta, gamma]).as_quat()
+    q_gt = Rot.from_euler('ZYZ', [alpha, beta, gamma]).as_quat() #Note: scipy defines this as extrinsic rotation.
     R_gt = Rot.from_euler('ZYZ', [alpha, beta, gamma])
     n_temp = Rot.from_quat(q_gt).as_rotvec()
     theta_gt = np.linalg.norm(n_temp)
-    n_gt = n_temp / theta_gt #if theta_gt > 1e-12 else np.array([1,0,0])
+    n_gt = n_temp / theta_gt 
     x_new_gt = R_gt.apply(x)
 
     print('-'*20)

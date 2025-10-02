@@ -19,7 +19,7 @@ orient = np.eye(3)
 box = m.Shape(m.Box(half_extents=[0.1, 0.2, 0.05]), static=True,
               position=pos, orientation=m.get_quaternion(orient), rgba=[0, 1, 0, 1])
 
-def euler_to_rotation_matrix(alpha, beta, gamma):
+def euler_to_rotation_matrix_moving(alpha, beta, gamma):
     # Convert euler angles (alpha, beta, gamma) to rotation matrix
     # input: alpha, beta, gamma: euler angles
     # output: R: rotation matrix
@@ -54,11 +54,11 @@ def apply_transform(pos, orient, d, euler):
     T_current[0:3,3] = pos
 
     T = np.eye(4)
-    T[0:3,0:3] = euler_to_rotation_matrix(euler[0], euler[1], euler[2])
+    T[0:3,0:3] = euler_to_rotation_matrix_moving(euler[0], euler[1], euler[2])
     T[0:3,3] = d
 
     #Apply Transform to T_current
-    T_new = T @ T_current
+    T_new =  T @ T_current
 
     #Return variables
     pos_new = T_new[0:3,3]
