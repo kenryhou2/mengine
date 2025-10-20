@@ -64,6 +64,27 @@ def rodrigues_formula(n, x, theta):
     # ------ Student answer above -------
 
 
+def quat_conjugate(q: np.ndarray) -> np.ndarray:
+    q = np.asarray(q, float).reshape(4)
+    x, y, z, w = q
+    return np.array([-x, -y, -z, w], float)
+
+def quat_normalize(q: np.ndarray) -> np.ndarray:
+    q = np.asarray(q, float).reshape(4)
+    n = np.linalg.norm(q)
+    if n < 1e-15:
+        return np.array([0.0, 0.0, 0.0, 1.0])
+    return q / n
+
+def rotate_point_quat(x: np.ndarray, q: np.ndarray) -> np.ndarray:
+    """Rotate 3D point x by unit quaternion q (xyzw). By performing q * x * q^-1."""
+    q = quat_normalize(q)
+    v = np.array([x[0], x[1], x[2], 0.0], float)
+    v_rot = hamilton_product(hamilton_product(q, v), quat_conjugate(q))
+    return v_rot[:3]
+
+
+
 def axis_angle_to_quaternion(axis: np.ndarray, angle: float) -> np.ndarray:
     """Convert axis-angle representation to quaternion."""
     # input: axis: axis of rotation
@@ -74,15 +95,12 @@ def axis_angle_to_quaternion(axis: np.ndarray, angle: float) -> np.ndarray:
     axis = np.asarray(axis, float)
     n = np.linalg.norm(axis)
     if n < 1e-12:
-        return np.eye(3)
+        return np.array([0.0, 0.0, 0.0, 1.0])
     a = axis / n
-    ax, ay, az = a
-    K = np.array([[0, -az, ay],
-                  [az, 0, -ax],
-                  [-ay, ax, 0]], dtype=float)
-    c, s = np.cos(angle), np.sin(angle)
-    R = np.eye(3) + s*K + (1 - c)*(K @ K)
-    return rotation_matrix_to_quaternion(R)
+    half = 0.5 * angle
+    s = np.sin(half)
+    q = np.array([a[0]*s, a[1]*s, a[2]*s, np.cos(half)], float)
+    return quat_normalize(q)
     # ------ Student answer above -------
 
 
@@ -185,6 +203,7 @@ if __name__ == '__main__':
         # rotate using quaternion and the hamilton product
         # ------ TODO Student answer below -------
         x_new_q = np.zeros(3)
+        x_new_q = rotate_point_quat(x, q)
         # ------ Student answer above -------
 
         point.set_base_pos_orient(x_new)
