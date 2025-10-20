@@ -74,24 +74,45 @@ def rrt_connect(init, goal, max_iterations=100):
     reference: http://www.kuffner.org/james/papers/kuffner_icra2000.pdf
     """
     """TODO: Your Answer HERE"""
-    raise NotImplementedError
+    # raise NotImplementedError
 
     # RRT-connect steps, as detailed in the Kuffner and LaValle, 2000 paper
+    init = np.asarray(init, dtype=float)
+    goal = np.asarray(goal, dtype=float)
+    #Check if initial and goal configurations are valid
+    if robot_in_collision(init) or robot_in_collision(goal):
+        print("Initial or goal configuration is in collision.")
+        return None
+
     # 1. Initialize two trees, T_a and T_b, with Nodes representing the start and goal configurations respectively
+    T_a = [Node(init)]
+    T_b = [Node(goal)]
+    forward = True  # True: T_a rooted at init. False: T_a rooted at goal.
 
-    # At each iteration for k iterations:
+    for _ in range(max_iterations):
+        # 1) Sample and EXTEND T_a toward qrand
+        qrand = random_sample_config()
+        new_a, reached_a = extend(T_a, qrand) 
 
-        # 2. Sample a random configuration, qrand, and attempt to extend T_a towards it to yield a new node
+        # 2) CONNECT T_b to the new_a configuration (one aggressive extend towards new_a)
+        new_b, reached_b = extend(T_b, new_a.angles)
 
-        # If successful:
+        # 3) If the trees met, stitch the paths in the correct order
+        if reached_b:
+            path_a = new_a.retrace()      # root(T_a) -> meeting
+            path_b = new_b.retrace()      # root(T_b) -> meeting
+            if forward:
+                # init -> ... -> meet  +  meet -> ... -> goal
+                full_nodes = path_a + path_b[::-1][1:]
+            else:
+                # init is in T_b when forward=False
+                # init -> ... -> meet  +  meet -> ... -> goal
+                full_nodes = path_b + path_a[::-1][1:]
+            return [n.angles for n in full_nodes]
 
-            # 3. Try to connect `Tb` to the new node, yielding a second new node
-
-            # If successful:
-
-                # 4: Return the computed path
-
-        # 6. Swap trees T_a and T_b after each iteration
+        # 4) Swap the roles of the trees for the next iteration
+        T_a, T_b = T_b, T_a
+        forward = not forward
 
     # 7. Return None if no path is found within the iteration limit
     return None
