@@ -21,7 +21,7 @@ def get_camera_image():
 
 
 def add_contact_point(position):
-    # input: position: position of the contact point relativ to object position
+    # input: position: position of the contact point relative to object position
     return m.Shape(m.Sphere(radius=0.02), static=True,
                    position=obj_pos + position, rgba=[1, 0, 0, 1])
 
@@ -50,8 +50,12 @@ def reset(scenario=0, n_steps=5, step_size=0.1):
 
         # ------ TODO Student answer below -------
         # Create point to rotate around axis
-        # rotation_axis = ?
-        # rotation_origin = ?
+        rotation_axis = np.array([0, 0, -1])  # clockwise (negative z axis)
+        rotation_origin = np.array([0.065, 0.01, 0])
+
+        # Scenario 1.1 test question:
+        # rotation_axis = np.array([0, 0, 1])  # counter clockwise (pos z axis)
+        # rotation_origin = np.array([0.25, 0.05, 0])
         # ------ Student answer above -------
 
     if scenario == 1.3:
@@ -60,6 +64,8 @@ def reset(scenario=0, n_steps=5, step_size=0.1):
 
         # ------ TODO Student answer below -------
         # Add contact point(s) to fully constrain object
+        s3 = add_contact_point([0.06, -0.08 - radius_contact_spheres, 0])
+        s1 = add_contact_point([0.1 + radius_contact_spheres, 0, 0])
         # ------ Student answer above -------
 
 

@@ -52,6 +52,8 @@ def generate_path(q1, q2, step_size=0.05):
         q = (1. / (num_steps - i)) * np.array(q2 - q) + q
         yield q
 
+def random_sample_config():
+    return np.random.uniform(robot.ik_lower_limits[:7], robot.ik_upper_limits[:7])
 
 def extend(tree, target):
     """Takes current tree and extend it towards a new node (`target`).
@@ -59,14 +61,33 @@ def extend(tree, target):
     closest_node = min(tree, key=lambda n: np.linalg.norm(n.angles - target))
     for q in generate_path(closest_node.angles, target):
         if robot_in_collision(q):
-            return closest_node, False
+            return closest_node, False, tree
         closest_node = Node(q, parent=closest_node)
         tree.append(closest_node)
-    return closest_node, True
+    return closest_node, True, tree
 
+def connect(tree, target):
+    """Takes current tree and extends it towards a new node (`target`) until
+    it reaches the target or gets TRAPPED.
+    S is the status of the operation:
+    S = 0 : TRAPPED
+    S = 1 : REACHED
+    S = 2 : ADVANCED
+    Returns the closest node to the target, the status S, and the updated tree.
+    """
+    while True:
+        closest_node, extend_success, tree = extend(tree, target.angles)
 
-def random_sample_config():
-    return np.random.uniform(robot.ik_lower_limits[:7], robot.ik_upper_limits[:7])
+        if not extend_success:
+            S = 0
+            break
+        elif np.allclose(closest_node.angles, target.angles):
+            S = 1
+            break
+        else:
+            S = 2
+
+    return closest_node, S, tree
 
 
 def rrt_connect(init, goal, max_iterations=100):
@@ -84,37 +105,29 @@ def rrt_connect(init, goal, max_iterations=100):
         print("Initial or goal configuration is in collision.")
         return None
 
-    # 1. Initialize two trees, T_a and T_b, with Nodes representing the start and goal configurations respectively
+    #Initialize two trees, T_a and T_b, with Nodes representing the start and goal configurations respectively
     T_a = [Node(init)]
     T_b = [Node(goal)]
-    forward = True  # True: T_a rooted at init. False: T_a rooted at goal.
 
-    for _ in range(max_iterations):
-        # 1) Sample and EXTEND T_a toward qrand
-        qrand = random_sample_config()
-        new_a, reached_a = extend(T_a, qrand) 
+    swap_num = 0 # to keep track of tree swaps, such that we can track start and goal trees for stitching.
 
-        # 2) CONNECT T_b to the new_a configuration (one aggressive extend towards new_a)
-        new_b, reached_b = extend(T_b, new_a.angles)
+    for iter in range(max_iterations):
+        q_rand = random_sample_config()
+        closest_node_a, extend_status_a, T_a = extend(T_a, q_rand)
+        if extend_status_a:
+            closest_node_b, status, T_b = connect(T_b, closest_node_a)
+            if status == 1: #connected Tree b to Tree a
+                print(f"Reached goal in {iter} iterations")
+                if swap_num % 2 == 1: # if odd number of swaps, then T_a is goal tree and T_b is start tree
+                    # swap again
+                    swap_num += 1
+                    T_a, T_b = T_b, T_a
 
-        # 3) If the trees met, stitch the paths in the correct order
-        if reached_b:
-            path_a = new_a.retrace()      # root(T_a) -> meeting
-            path_b = new_b.retrace()      # root(T_b) -> meeting
-            if forward:
-                # init -> ... -> meet  +  meet -> ... -> goal
-                full_nodes = path_a + path_b[::-1][1:]
-            else:
-                # init is in T_b when forward=False
-                # init -> ... -> meet  +  meet -> ... -> goal
-                full_nodes = path_b + path_a[::-1][1:]
-            return [n.angles for n in full_nodes]
-
-        # 4) Swap the roles of the trees for the next iteration
+                # retrace path from start to goal
+                node_path = T_a[-1].retrace() + T_b[-1] .retrace()[::-1] 
+                return [node.angles for node in node_path]
+        swap_num += 1
         T_a, T_b = T_b, T_a
-        forward = not forward
-
-    # 7. Return None if no path is found within the iteration limit
     return None
     """TODO: Your Answer END"""
 
