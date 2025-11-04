@@ -54,13 +54,38 @@ def reset():
 
 def get_contact_screw(contact_location, contact_normal):
     """Returns the contact screw in screw coordinates given a contact location and contact_normal
+
+    Returns the contact screw [f_x, f_y, f_z, tau_x, tau_y, tau_z]^T
+    given a world-frame contact_location (r) and contact_normal (n).
+
+    We use a unit force along the contact normal:
+        f = n / ||n||
+    and the moment about the origin:
+        tau = r x f
+
+    If you prefer the moment about the object's COM, replace `r` with
+    (contact_location - obj_pos).
     """
     # ------ TODO Student answer below -------
 
     contact_screw = np.zeros(6)
+    r = np.asarray(contact_location, dtype=float).reshape(3)
+    n = np.asarray(contact_normal, dtype=float).reshape(3)
+
+    # Guard against zero normal
+    n_norm = np.linalg.norm(n)
+    if n_norm < 1e-12:
+        return np.zeros(6)
+
+    f = n / n_norm                  # unit contact force along the normal
+    tau = np.cross(r, f)            # moment about the world origin
+
+    contact_screw = np.hstack([f, tau])
     # ------ Student answer above -------
 
     return contact_screw
+
+
 
 
 

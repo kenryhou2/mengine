@@ -1,5 +1,5 @@
 """
-Assignment 4 Problem 3: Antipodal Grasp
+Assignment 4 Problem 3: Antipodal Grasp, 
 
 NOTE:
     First install open3d using: 'python3 -m pip install open3d'
@@ -10,6 +10,8 @@ from typing import Tuple, List
 import numpy as np
 import open3d as o3d
 import mengine as m
+
+
 
 def load_object(idx, obj_position):
     obj_names = ["bowl", "cheezit", "spam", "mustard", "tomato_soup_can", "mug"]
@@ -31,7 +33,18 @@ def sample_grasp_ee_poses(obj, num_samples=100) -> List[Tuple[np.ndarray, np.nda
     """
     # ------ TODO Student answer below -------
     # Note: If you want, the following code can give you a bounding box for the object: obj_min, obj_max = obj.get_AABB()
-    raise NotImplementedError
+    # raise NotImplementedError
+    ee_poses = []
+
+    # AABB comes back as tuples -> cast to float arrays
+    obj_min, obj_max = obj.get_AABB()
+    for _ in range(num_samples):
+        position = np.random.uniform(obj_min, obj_max)
+        orientation = m.get_quaternion(np.array([np.pi, 0, 0]))
+
+        ee_poses.append((position, orientation))
+
+    return ee_poses
     # ------ Student answer above -------
 
 
@@ -70,7 +83,29 @@ def get_antipodal_score(robot_joint_angles, pc, normals) -> float:
     # ------ TODO Student answer below -------
     # Hint: example code for computing an antipodal grasp score can be found in lecture13_antipodal.py
 
-    raise NotImplementedError
+    # raise NotImplementedError
+    # Update our antipodal region of interest
+    # Hint: example code for computing an antipodal grasp score can be found in lecture13_antipodal.py
+    p, o = robot.get_link_pos_orient(robot.end_effector)
+    antipodal_region.set_base_pos_orient(p, o)
+
+    # Transform points to gripper local frame and gate by the box
+    points_local = np.array([antipodal_region.global_to_local_coordinate_frame(pt)[0] for pt in pc])
+    inside_lo = np.all(points_local > -half_extents, axis=-1)
+    inside_hi = np.all(points_local <  half_extents, axis=-1)
+    in_box = np.logical_and(inside_lo, inside_hi)
+
+    normals_in_gripper = normals[in_box]
+
+    # Gripper line (finger closing axis) in world, then normalize
+    g_tip = robot.local_to_global_coordinate_frame([0, 0.2, 0], link=robot.end_effector)[0]
+    gripper_line_vector = g_tip - p
+    gripper_line_vector /= (np.linalg.norm(gripper_line_vector) + 1e-12)
+
+    # Simple score: align normals with gripper closing axis
+    if len(normals_in_gripper) > 0:
+        score = np.mean(np.abs(normals_in_gripper @ gripper_line_vector))
+
     # ------ Student answer above -------
 
     # Restore robot to previous configuration
@@ -93,7 +128,19 @@ def find_best_grasp(obj, **kwargs) -> np.ndarray:
         robot_joint_angles: Robot joint angles to grasp the object
     """
     # ------ TODO Student answer below -------
-    raise NotImplementedError
+    # raise NotImplementedError
+    robot_joint_angles = None
+    ee_poses = sample_grasp_ee_poses(obj, num_samples=kwargs.get('max_sample', 100))
+    pc, normals = get_point_cloud(obj)
+    best_score = kwargs.get('min_score', 0)
+    for ee_pose in ee_poses:
+        candidate_joint_angles = robot.ik(robot.end_effector, target_pos=ee_pose[0], target_orient=ee_pose[1], use_current_joint_angles=True)
+        score = get_antipodal_score(candidate_joint_angles, pc, normals)
+        if score > best_score:
+            best_score = score
+            robot_joint_angles = candidate_joint_angles
+    print(f'Best antipodal score: {best_score}')
+    return robot_joint_angles
     # ------ Student answer above -------
 
 
