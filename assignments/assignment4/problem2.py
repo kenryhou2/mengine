@@ -62,9 +62,6 @@ def get_contact_screw(contact_location, contact_normal):
         f = n / ||n||
     and the moment about the origin:
         tau = r x f
-
-    If you prefer the moment about the object's COM, replace `r` with
-    (contact_location - obj_pos).
     """
     # ------ TODO Student answer below -------
 

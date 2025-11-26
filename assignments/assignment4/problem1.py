@@ -72,8 +72,14 @@ def reset():
         [ 0.0, -0.1],
     ], dtype=float)
 
-    # 3) Reflect the robot for C-obstacle construction
-    neg_robot = -triangle  # reflect about origin
+    #Find reference vertex (top-most, left-most)
+    ul_idx = np.lexsort((triangle[:, 0], -triangle[:, 1]))[0]  # sort by -y, then x
+    v_ref = triangle[ul_idx]
+
+    ## 4) Shift robot so the reference vertex is at the origin
+    triangle_ref = triangle - v_ref        # R_ref: reference vertex at (0,0)
+    neg_robot = -triangle_ref              # −R_ref for Minkowski sum
+
 
     cobs1 = minkowski_cspace_polygon(rect1, neg_robot)
     cobs2 = minkowski_cspace_polygon(rect2, neg_robot)
@@ -90,7 +96,7 @@ def reset():
     plt.axis('equal')
     plt.grid(True)
     plt.legend()
-    plt.title("C-space obstacles = O₁ ⊕ (−R) and O₂ ⊕ (−R)")
+    plt.title("C-space from O ⊕ (−R_ref): robot ref at upper-left vertex")
     plt.show()
 
 

@@ -1,7 +1,8 @@
-from imp import lock_held
+# from imp import lock_held
 import os
 import numpy as np
 import mengine as m
+import copy
 
 
 # use the functions created in part1 of the homework to find a force closure grasp
@@ -13,9 +14,7 @@ env = m.Env(time_step=0.005)
 env.set_gui_camera(look_at_pos=[0, 0, 0.95])
 orient = m.get_quaternion([np.pi, 0, 0])
 
-
 def sample_spherical(npoints, r=0.1):
-
     points = []
     normals = []
     for i in range(npoints):
@@ -48,10 +47,34 @@ def sample_cube(npoints, l=0.2):
 def find_force_closure_grasp(testobj, mu) -> tuple:
 
     # ------ TODO: Student answer below -------
+    max_iter = 1000
+    is_FC_friction = False
+    for iters in range(max_iter):
+        if testobj == "sphere":
+            contact_positions, contact_normals = sample_spherical(10)
+        elif testobj == "cube":
+            contact_positions, contact_normals = sample_cube(3)
 
-    # ------ Student answer above -------
+        if mu != 0:
+            # Case with friction
+            contact_points_FC, contact_normals_FC = friction_cone_3d(contact_positions, contact_normals, mu, 100)
+        else:
+            # Frictionless case
+            contact_points_FC, contact_normals_FC = copy.deepcopy(contact_positions), copy.deepcopy(contact_normals)
 
+        wrench_friction = contact_screw_3d(contact_points_FC, contact_normals_FC)
+        is_FC_friction, z_max_friction = is_force_closure(wrench_friction)
+
+        # print(is_FC_friction, z_max_friction)
+        if is_FC_friction:
+            return contact_positions, contact_normals
+        
+    # Reached max iterations without finding a force closure grasp
+    if is_FC_friction == False:    
+        print('no force closure grasp available')
     return contact_positions, contact_normals
+    # ------ Student answer above -------
+    
 
 
 # Reset simulation env
@@ -120,10 +143,11 @@ def visualize_grasps(grasps):
 def main(testobj, friction=True):
 
     # ------ TODO: Parameters to experiment with ------
-    obj_mass = 100
+    obj_mass = 1
     obj_friction = 0.5
-    finger_mass = 10.0
-    force_magnitude = 1000
+    finger_mass = 10
+    force_magnitude = 10
+
 
     # Also, make sure to play around with changing the friction param passed to this function (True vs. False)!
 

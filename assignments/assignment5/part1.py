@@ -1,4 +1,4 @@
-from imp import lock_held
+# from imp import lock_held
 import os
 import argparse
 import numpy as np
@@ -40,7 +40,13 @@ def compute_rot_mat(n):
 
 
 def contact_screw_3d(contact_points: np.ndarray, contact_normals: np.ndarray) -> np.ndarray:
+    p = contact_points
+    # u = contact_normals
+    u = contact_normals / np.linalg.norm(contact_normals, axis=1, keepdims=1)
 
+    wrench = np.zeros((p.shape[0], 6))
+    wrench[:, :3] = u
+    wrench[:, 3:] = np.cross(p, u)
     return wrench
 
 #########################################################################
@@ -57,8 +63,27 @@ def contact_screw_3d(contact_points: np.ndarray, contact_normals: np.ndarray) ->
 def friction_cone_3d(contact_points: np.ndarray, contact_normals: np.ndarray, mu: float, n_fc: int) -> tuple:
     #
     # your code here
-    #
-    #
+    contact_points_FC = []
+    contact_normals_FC = []
+    num_points = contact_points.shape[0]
+    for i in range(num_points):
+        p = contact_points[i]
+        norm = contact_normals[i]
+        norm = norm / np.linalg.norm(norm)
+        new_norm = np.zeros((n_fc, 3))
+        R = compute_rot_mat(norm)
+        for k in range(n_fc):
+            new_norm[k] = R @ np.array(
+                [
+                    1,
+                    mu * np.cos(2 * k * np.pi / n_fc),
+                    mu * np.sin(2 * k * np.pi / n_fc),
+                ]
+            )
+            contact_points_FC.append(p)
+            contact_normals_FC.append(new_norm[k])
+    contact_points_FC = np.asarray(contact_points_FC)
+    contact_normals_FC = np.asarray(contact_normals_FC)
     return contact_points_FC, contact_normals_FC
 
 
@@ -68,7 +93,25 @@ def friction_cone_3d(contact_points: np.ndarray, contact_normals: np.ndarray, mu
 # z_max: maximum objective function value at optimal point; float
 #########################################################################
 def is_force_closure(w: np.ndarray) -> tuple:
+    # Rank check
+    rank = np.linalg.matrix_rank(w)
+    if rank < 6:
+        # print("Rank deficient wrench matrix.")
+        return False, 1
 
+    #Form Linear Program
+    Wc = np.mean(w, axis=0)
+    c = Wc
+    b_ub = np.ones(w.shape[0])
+    A_ub = w - Wc
+
+    # Solve Linear Program
+    residual = optimize.linprog(c, A_ub=A_ub, b_ub=b_ub)
+    if residual.fun is None:
+        return False, 1
+
+    z_max = -residual.fun
+    is_FC = True if z_max < 1 else False
     return is_FC, z_max
 
 
